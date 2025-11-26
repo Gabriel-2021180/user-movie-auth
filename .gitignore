@@ -1,0 +1,22 @@
+# --- Entornos Virtuales (¡CRÍTICO NO SUBIR ESTO!) ---
+venv/
+env/
+.venv/
+
+# --- Archivos de Entorno (Secretos) ---
+.env
+.env.local
+.env.*
+
+# --- Python Compilado y Caché ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Bases de Datos Locales ---
+*.db
+*.sqlite3
+
+# --- Configuración de IDEs (Opcional pero recomendado) ---
+.vscode/
+.idea/
