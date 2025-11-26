@@ -22,3 +22,6 @@ class UserRead(UserBase):
     
     class Config:
         from_attributes = True
+class UserVerify(BaseModel):
+    email: EmailStr
+    code: str        

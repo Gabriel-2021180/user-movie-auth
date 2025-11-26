@@ -14,8 +14,14 @@ class Settings(BaseSettings):
     # URL de conexión a la Base de Datos
     # También la buscará en el .env
     DATABASE_URL: str
-
+    
+# Nuevas variables para el Email
+    SMTP_SERVER: str
+    SMTP_PORT: int
+    SMTP_USER: str
+    SMTP_PASSWORD: str
     # Configuración de JWT
+    
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
