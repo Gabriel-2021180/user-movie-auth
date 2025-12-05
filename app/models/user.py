@@ -1,5 +1,5 @@
-from sqlmodel import SQLModel, Field
-from typing import Optional
+from sqlmodel import SQLModel, Field, Relationship
+from typing import Optional,List
 from datetime import datetime
 import uuid
 
@@ -20,5 +20,9 @@ class User(SQLModel, table=True):
     # Metadatos
     created_at: datetime = Field(default_factory=datetime.utcnow) # fecha_registro (automática)
     status: bool = Field(default=True) # Estado (Activo/Inactivo)
-    
+    last_profile_update: Optional[datetime] = None 
+    banner_color: str = Field(default="#a16207")
+    daily_color_changes: int = Field(default=0)
+    last_color_change_at: Optional[datetime] = None
+    reviews: List["Review"] = Relationship(back_populates="user")
   
