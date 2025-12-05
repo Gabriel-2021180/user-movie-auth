@@ -125,6 +125,7 @@ def login_access_token(
             "username": user.username,
             "first_name": user.first_name,
             "last_name": user.last_name,
+            "banner_color": user.banner_color,
             "photo": None # Si agregas foto en el futuro, ponla aquí
         }
     }

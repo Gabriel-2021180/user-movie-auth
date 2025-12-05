@@ -19,7 +19,7 @@ class UserRead(UserBase):
     id: uuid.UUID
     created_at: datetime
     status: bool
-    banner_color: Optional[str] = "#a16207"
+    banner_color: Optional[str] = None
     class Config:
         from_attributes = True
 class UserVerify(BaseModel):
