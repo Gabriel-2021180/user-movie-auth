@@ -11,7 +11,8 @@ from app.models.pending_user import PendingRegistration
 from app.schemas.user import UserCreate, UserRead, UserVerify
 from app.schemas.token import Token
 from app.services.email_service import EmailService
-
+from app.models.password_reset import PasswordReset
+from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest
 router = APIRouter()
 
 # --- PASO 1: SOLICITAR REGISTRO (No crea usuario, solo manda código) ---
@@ -187,3 +188,82 @@ def login_access_token(
             "photo": None 
         }
     }
+@router.post("/forgot-password", status_code=200)
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    session: Session = Depends(get_session)
+):
+    # 1. Buscar si el usuario existe
+    user = session.exec(select(User).where(User.email == request.email)).first()
+    
+    # 2. SEGURIDAD: Si no existe, fingimos que enviamos el correo (para evitar enumeración de usuarios)
+    if not user:
+        # Simulamos espera para que el tiempo de respuesta sea igual
+        return {"message": "Si el correo existe, recibirás un código."}
+
+    # 3. Limpiar códigos viejos de este email
+    existing_resets = session.exec(select(PasswordReset).where(PasswordReset.email == request.email)).all()
+    for reset in existing_resets:
+        session.delete(reset)
+
+    # 4. Generar código
+    code = EmailService.generate_code()
+    expires = datetime.utcnow() + timedelta(minutes=15) # 15 mins de vida
+
+    # 5. Guardar en tabla temporal
+    reset_entry = PasswordReset(
+        email=request.email,
+        code=code,
+        expires_at=expires
+    )
+    session.add(reset_entry)
+    session.commit()
+
+    # 6. Enviar Email
+    # Nota: Pasamos user.username para el saludo personalizado
+    await EmailService.send_reset_password_email(user.email, user.username, code)
+
+    return {"message": "Si el correo existe, recibirás un código."}
+
+
+# --- 2. CONFIRMAR Y CAMBIAR PASSWORD ---
+@router.post("/reset-password", status_code=200)
+def reset_password(
+    request: ResetPasswordRequest,
+    session: Session = Depends(get_session)
+):
+    # 1. Buscar el código en la tabla temporal
+    reset_entry = session.exec(
+        select(PasswordReset).where(PasswordReset.email == request.email)
+    ).first()
+
+    if not reset_entry:
+        raise HTTPException(status_code=400, detail="No hay solicitud de cambio pendiente.")
+
+    # 2. Validar código y expiración
+    if reset_entry.code != request.code:
+        raise HTTPException(status_code=400, detail="Código incorrecto.")
+    
+    if datetime.utcnow() > reset_entry.expires_at:
+        session.delete(reset_entry)
+        session.commit()
+        raise HTTPException(status_code=400, detail="El código ha expirado.")
+
+    # 3. Buscar al usuario real
+    user = session.exec(select(User).where(User.email == request.email)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+    # 4. ACTUALIZAR CONTRASEÑA
+    user.hashed_password = get_password_hash(request.new_password)
+    
+    # 5. BONUS: Desbloquear usuario si estaba castigado por intentos fallidos
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    
+    # 6. Limpieza final
+    session.delete(reset_entry) # Borramos el código usado
+    session.add(user)
+    session.commit()
+
+    return {"message": "Contraseña actualizada correctamente. Ya puedes iniciar sesión."}    

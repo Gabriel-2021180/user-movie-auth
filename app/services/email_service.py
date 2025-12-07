@@ -68,3 +68,44 @@ class EmailService:
         except Exception as e:
             print(f"❌ Error enviando email: {e}")
             return False
+        
+    @staticmethod
+    async def send_reset_password_email(email_to: str, username: str, code: str):
+        """
+        Envía el código para restablecer contraseña.
+        """
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = settings.SMTP_USER
+            msg['To'] = email_to
+            msg['Subject'] = "Restablecer Contraseña - FilmStack"
+
+            # Diseño Rojo/Alerta para diferenciarlo del registro
+            body = f"""
+            <html>
+              <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px;">
+                <div style="max-width: 500px; margin: 0 auto; background-color: #fff; border-radius: 10px; padding: 30px; border: 1px solid #e2e8f0;">
+                    <h2 style="color: #0f172a;">Hola, {username}</h2>
+                    <p style="color: #64748b;">Recibimos una solicitud para restablecer tu contraseña.</p>
+                    
+                    <div style="background-color: #fef2f2; border-radius: 8px; padding: 15px; text-align: center; margin: 20px 0; border: 1px solid #fee2e2;">
+                        <span style="display: block; font-size: 12px; color: #ef4444; font-weight: bold; margin-bottom: 5px;">CÓDIGO DE SEGURIDAD</span>
+                        <h1 style="color: #dc2626; letter-spacing: 5px; margin: 0; font-size: 32px;">{code}</h1>
+                    </div>
+                    
+                    <p style="color: #94a3b8; font-size: 12px;">Si no fuiste tú, ignora este correo. Tu cuenta sigue segura.</p>
+                </div>
+              </body>
+            </html>
+            """
+            msg.attach(MIMEText(body, 'html'))
+
+            server = smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT)
+            server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_USER, email_to, msg.as_string())
+            server.quit()
+            return True
+        except Exception as e:
+            print(f"❌ Error email reset: {e}")
+            return False

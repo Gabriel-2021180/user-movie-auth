@@ -11,7 +11,7 @@ from app.api.v1.endpoints import auth, favorites, users, reviews
 from app.models.review import Review
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    #create_db_and_tables() # Descomentar si necesitas inicializar tablas
+    create_db_and_tables() # Descomentar si necesitas inicializar tablas
     print("------> ¡SERVIDOR LISTO! <------")
     yield
 
