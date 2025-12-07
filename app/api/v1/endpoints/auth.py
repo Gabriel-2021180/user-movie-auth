@@ -102,24 +102,23 @@ def login_access_token(
     # 1. Buscar usuario
     user = session.exec(select(User).where(User.email == form_data.username)).first()
     
-    # Si no existe el usuario, lanzamos error genérico (por seguridad no decimos "no existe")
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales incorrectas",
         )
 
-    # 2. VERIFICAR SI ESTÁ BLOQUEADO (Aquí evitamos el ataque incógnito)
+    # 2. VERIFICAR SI ESTÁ BLOQUEADO
     if user.locked_until:
         if datetime.utcnow() < user.locked_until:
-            # Calculamos minutos restantes
             remaining_min = int((user.locked_until - datetime.utcnow()).total_seconds() / 60) + 1
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Cuenta bloqueada temporalmente. Intenta en {remaining_min} minutos."
             )
         else:
-            # El castigo ya pasó, limpiamos (pero no los intentos, para que el próximo fallo sea grave)
+            # Castigo cumplido, limpiamos fecha (pero mantenemos contador si quieres ser estricto, 
+            # o lo limpiamos si quieres ser amable. Aquí limpiamos solo la fecha para dejarlo entrar)
             user.locked_until = None
             session.add(user)
             session.commit()
@@ -127,18 +126,19 @@ def login_access_token(
     # 3. VERIFICAR CONTRASEÑA
     if not verify_password(form_data.password, user.hashed_password):
         
-        # --- LÓGICA DE CASTIGO PROGRESIVO ---
-        user.failed_attempts = (user.failed_login_attempts or 0) + 1
+        # --- CORRECCIÓN AQUÍ ---
+        # Antes decía user.failed_attempts (Error). Ahora dice user.failed_login_attempts (Correcto)
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
         
         minutes_locked = 0
         
         # NIVELES DE CASTIGO
         if user.failed_login_attempts == 4:
-            minutes_locked = 5   # Primer castigo
+            minutes_locked = 5
         elif user.failed_login_attempts == 5:
-            minutes_locked = 15  # Segundo castigo
+            minutes_locked = 15
         elif user.failed_login_attempts >= 6:
-            minutes_locked = 60  # Castigo máximo
+            minutes_locked = 60
             
         if minutes_locked > 0:
             user.locked_until = datetime.utcnow() + timedelta(minutes=minutes_locked)
@@ -149,7 +149,6 @@ def login_access_token(
                 detail=f"Has excedido los intentos. Bloqueado por {minutes_locked} minutos."
             )
         
-        # Si aún no llega al límite, guardamos el intento y avisamos
         session.add(user)
         session.commit()
         
@@ -164,7 +163,7 @@ def login_access_token(
         )
 
     # 4. ÉXITO: LIMPIAR HISTORIAL CRIMINAL
-    # Si entra correctamente, le perdonamos todo
+    # Aquí es donde cumplimos tu deseo: Si entra bien, reseteamos a 0.
     user.failed_login_attempts = 0
     user.locked_until = None
     session.add(user)
