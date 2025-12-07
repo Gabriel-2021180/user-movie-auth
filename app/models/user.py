@@ -17,6 +17,8 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     hashed_password: str # password (encriptada)
     
+    failed_login_attempts: int = Field(default=0)  # Contador de fallos
+    locked_until: Optional[datetime] = None
     # Metadatos
     created_at: datetime = Field(default_factory=datetime.utcnow) # fecha_registro (automática)
     status: bool = Field(default=True) # Estado (Activo/Inactivo)

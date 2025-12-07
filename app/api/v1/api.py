@@ -4,7 +4,7 @@ from app.db.session import get_session
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRead
 from app.core.security import get_password_hash
-
+from datetime import datetime, timedelta
 router = APIRouter()
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
