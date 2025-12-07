@@ -56,7 +56,7 @@ async def signup_user(
     session.commit()
 
     # 5. Enviar Email Real
-    sent = await EmailService.send_verification_email(user_in.email, code)
+    sent = await EmailService.send_verification_email(user_in.email, user_in.username, code)
     if not sent:
         raise HTTPException(status_code=500, detail="Error enviando el correo. Intenta de nuevo.")
 
