@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional,List
 from datetime import datetime
 import uuid
-
+from app.models.favorite_person import FavoritePerson # <--- IMPORTAR
 # Tabla de Usuario basada en tu diagrama
 class User(SQLModel, table=True):
     # ID único tipo UUID (ej: 550e8400-e29b-41d4-a716-446655440000)
@@ -27,4 +27,5 @@ class User(SQLModel, table=True):
     daily_color_changes: int = Field(default=0)
     last_color_change_at: Optional[datetime] = None
     reviews: List["Review"] = Relationship(back_populates="user")
+    favorite_people: List["FavoritePerson"] = Relationship(back_populates="user")
   

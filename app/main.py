@@ -11,7 +11,7 @@ from app.api.v1.endpoints import auth, favorites, users, reviews
 from app.models.review import Review
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_db_and_tables() # Descomentar si necesitas inicializar tablas
+    #create_db_and_tables() # Descomentar si necesitas inicializar tablas
     print("------> ¡SERVIDOR LISTO! <------")
     yield
 
@@ -25,10 +25,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# --- CONFIGURACIÓN CORS PERMISIVA (Para evitar dolores de cabeza) ---
-# Allow origins = ["*"] permite que CUALQUIER sitio web consuma tu API.
-# Esto es ideal para desarrollo y pruebas iniciales.
-# Cuando termines todo el proyecto, puedes cambiarlo por tu dominio real.
+
 
 app.add_middleware(
     CORSMiddleware,

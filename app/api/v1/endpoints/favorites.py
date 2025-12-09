@@ -11,7 +11,7 @@ from app.models.user import User
 from app.schemas.favorite import FavoriteCreate, FavoriteRead
 from fastapi import Request # <--- Importar Request
 from app.core.limiter import limiter # <--- Importar el limitador
-
+from app.models.favorite_person import FavoritePerson
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -100,3 +100,60 @@ def delete_favorite(
     session.delete(fav)
     session.commit()
     return None
+
+@router.get("/people", response_model=List[FavoritePerson])
+def read_favorite_people(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    return current_user.favorite_people
+
+
+# --- 2. AGREGAR PERSONA FAVORITA ---
+@router.post("/people", response_model=FavoritePerson)
+def add_favorite_person(
+    person_in: FavoritePerson, # Recibimos los datos del front
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    # Verificar si ya existe
+    existing = session.exec(
+        select(FavoritePerson)
+        .where(FavoritePerson.user_id == current_user.id)
+        .where(FavoritePerson.person_id == person_in.person_id)
+    ).first()
+    
+    if existing:
+        return existing # Si ya está, no hacemos nada (idempotente)
+
+    # Crear nueva relación
+    # Forzamos el user_id del token (seguridad)
+    person_in.user_id = current_user.id
+    # Re-generamos ID interno por si el front mandó basura
+    person_in.id = None 
+    
+    session.add(person_in)
+    session.commit()
+    session.refresh(person_in)
+    return person_in
+
+
+# --- 3. ELIMINAR PERSONA FAVORITA ---
+@router.delete("/people/{person_id}")
+def remove_favorite_person(
+    person_id: str, # El ID de TMDB
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    fav = session.exec(
+        select(FavoritePerson)
+        .where(FavoritePerson.user_id == current_user.id)
+        .where(FavoritePerson.person_id == person_id)
+    ).first()
+    
+    if not fav:
+        raise HTTPException(status_code=404, detail="Persona no encontrada en favoritos")
+        
+    session.delete(fav)
+    session.commit()
+    return {"ok": True}
