@@ -8,6 +8,8 @@ from app.models.movie import Movie
 from app.schemas.review import ReviewCreate, ReviewRead
 from app.api.v1.endpoints.users import get_current_user
 from sqlalchemy.orm import joinedload
+import uuid # Necesario para el tipo UUID
+from app.schemas.review import ReviewUpdate
 router = APIRouter()
 
 # --- CREAR ---
@@ -128,3 +130,48 @@ def get_movie_reviews(
         ))
         
     return results
+
+@router.put("/{review_id}", response_model=ReviewRead)
+def update_review(
+    review_id: uuid.UUID,
+    review_in: ReviewUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. Buscar la reseña
+    review = session.get(Review, review_id)
+    
+    if not review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+        
+    # 2. Verificar que sea SU reseña (Seguridad)
+    if review.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar esta reseña")
+    
+    # 3. Actualizar campos si vienen datos
+    if review_in.rating is not None:
+        review.rating = review_in.rating
+        # Recalcular sentimiento
+        review.sentiment = "positive" if review.rating >= 4 else "neutral" if review.rating == 3 else "negative"
+        
+    if review_in.content is not None:
+        review.content = review_in.content
+        
+    # 4. Guardar cambios
+    session.add(review)
+    session.commit()
+    session.refresh(review)
+    
+    # 5. Devolver respuesta (con datos de la película para que no rompa el front)
+    return ReviewRead(
+        id=review.id,
+        user_id=str(review.user_id),
+        movie_id=review.movie_id,
+        username=current_user.username,
+        movie_title=review.movie.title if review.movie else "",
+        movie_poster=review.movie.poster if review.movie else "",
+        rating=review.rating,
+        content=review.content,
+        sentiment=review.sentiment,
+        created_at=review.created_at
+    )

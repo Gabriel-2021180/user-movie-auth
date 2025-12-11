@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 import uuid # <--- Importar uuid
+from typing import Optional
+from sqlmodel import SQLModel
 
 class ReviewCreate(BaseModel):
     movie_id: str
@@ -29,3 +31,7 @@ class ReviewRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ReviewUpdate(SQLModel):
+    rating: Optional[int] = None
+    content: Optional[str] = None        
