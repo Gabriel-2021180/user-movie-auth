@@ -1,11 +1,15 @@
 import uuid
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Path, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import RowMapping
 
 from app.api.v2.deps import client_ip, get_current_user_id, get_current_user_row
 from app.core.limiter import limiter
 from app.schemas.v2.user import ConsentIn, DeleteMeIn, ProfilePatch, PublicProfile, UserMe
+from app.repositories import maintenance_repository
 from app.services import user_service
 
 router = APIRouter()
@@ -36,6 +40,16 @@ def accept_consents(
 ):
     user_service.record_consent(user_id, data.terms_version, data.privacy_version, ip)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/me/export")
+@limiter.limit("3/day")
+def export_me(request: Request, user_id: uuid.UUID = Depends(get_current_user_id)):
+    """Todos mis datos en JSON (derecho de acceso y portabilidad)."""
+    data = maintenance_repository.export_user(user_id) or {}
+    data["exported_at"] = datetime.now(timezone.utc).isoformat()
+    filename = f"filmstack-mis-datos-{datetime.now(timezone.utc):%Y%m%d}.json"
+    return JSONResponse(data, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 # Va al final para que /me tenga prioridad sobre /{username}

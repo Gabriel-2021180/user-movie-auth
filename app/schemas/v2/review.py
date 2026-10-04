@@ -27,7 +27,7 @@ class ReviewPatch(BaseModel):
 
 class ReviewOut(BaseModel):
     id: uuid.UUID
-    user_id: uuid.UUID
+    user_id: Optional[uuid.UUID] = None  # null = cuenta eliminada (reseña anonimizada)
     username: str
     movie_id: str
     movie_title: Optional[str] = None

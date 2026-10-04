@@ -35,6 +35,7 @@ os.environ.update({
     "SMTP_USER": "noreply@example.com",
     "SMTP_PASSWORD": "unused",
     "BFF_SHARED_SECRET": "bff-test-secret",
+    "CRON_SECRET": "cron-test-secret",
     "REQUIRE_BFF_SECRET": "true",
 })
 

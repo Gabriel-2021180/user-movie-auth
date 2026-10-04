@@ -24,3 +24,15 @@ def test_v1_user_insert_login_and_favorites(client):
     r = client.post("/api/v1/favorites/", headers=h, json={"movie_id": "550", "title": "Fight Club"})
     assert r.status_code == 201, r.text
     assert [f["movie_id"] for f in client.get("/api/v1/favorites/", headers=h).json()] == ["550"]
+
+
+def test_v1_movie_reviews_tolerate_anonymized_review(client, db_ready):
+    import psycopg
+    mid = uuid.uuid4().hex[:12]
+    with psycopg.connect(db_ready) as conn:
+        conn.execute("INSERT INTO movie (id, title, poster, year, vote_count, vote_sum) VALUES (%s, 'T', '', 'N/A', 0, 0)", (mid,))
+        conn.execute("INSERT INTO review (id, user_id, movie_id, rating, content, sentiment, created_at, updated_at) "
+                     "VALUES (gen_random_uuid(), NULL, %s, 4, 'x', 'positive', now(), now())", (mid,))
+    r = client.get(f"/api/v1/reviews/movie/{mid}")
+    assert r.status_code == 200, r.text
+    assert r.json()[0]["username"] == "Usuario Eliminado" and r.json()[0]["user_id"] is None

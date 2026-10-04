@@ -53,6 +53,8 @@ class Settings(BaseSettings):
 
     # Baja de cuenta
     ACCOUNT_GRACE_DAYS: int = 90
+    # Retención de sesiones (IP / navegador) tras vencer o cerrarse
+    SESSION_RETENTION_DAYS: int = 90
 
     # BFF (Next.js): secreto compartido que habilita X-Client-IP
     BFF_SHARED_SECRET: Optional[str] = None

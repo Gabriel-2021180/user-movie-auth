@@ -79,7 +79,7 @@ def get_my_reviews(
         
         results.append(ReviewRead(
             id=r.id,
-            user_id=str(r.user_id),
+            user_id=r.user_id,
             movie_id=r.movie_id,
             username=current_user.username,
             # Llenamos datos de la película desde la relación
@@ -118,7 +118,7 @@ def get_movie_reviews(
         
         results.append(ReviewRead(
             id=r.id,
-            user_id=str(r.user_id),
+            user_id=r.user_id,
             movie_id=r.movie_id,
             username=user_name,
             movie_title=r.movie.title if r.movie else "",

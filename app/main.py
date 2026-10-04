@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.endpoints import auth, favorites, reviews, users
+from app.api import internal
 from app.api.v2.router import api_router as api_v2_router
 from app.core.config import settings
 from app.core.errors import register_error_handlers
@@ -61,6 +62,9 @@ app.include_router(reviews.router, prefix="/api/v1/reviews", tags=["Reviews"])
 
 # Rutas v2
 app.include_router(api_v2_router, prefix=settings.API_V2_STR)
+
+# Tareas internas (Vercel Cron)
+app.include_router(internal.router, prefix="/api/internal")
 
 
 @app.get("/")

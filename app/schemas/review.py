@@ -16,7 +16,7 @@ class ReviewCreate(BaseModel):
 # Esquema para lectura
 class ReviewRead(BaseModel):
     id: uuid.UUID # <--- CAMBIO: Ahora es UUID
-    user_id: uuid.UUID # <--- CAMBIO: También es UUID
+    user_id: Optional[uuid.UUID] = None  # null = cuenta eliminada
     movie_id: str
     username: str
     

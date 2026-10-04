@@ -4,5 +4,11 @@
       "source": "/(.*)",
       "destination": "/main.py"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/internal/cron/purge",
+      "schedule": "0 4 * * *"
+    }
   ]
 }
