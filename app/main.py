@@ -1,46 +1,68 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.db.session import create_db_and_tables
-from app.api.v1.endpoints import auth, favorites
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.v1.endpoints import auth, favorites, reviews, users
+from app.api.v2.router import api_router as api_v2_router
+from app.core.config import settings
+from app.core.errors import register_error_handlers
 from app.core.limiter import limiter
-from app.api.v1.endpoints import auth, favorites, users
-from app.api.v1.endpoints import auth, favorites, users, reviews
-from app.models.review import Review
+from app.models.review import Review  # noqa: F401  (registra el modelo para las relaciones de v1)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    #create_db_and_tables() # Descomentar si necesitas inicializar tablas
     print("------> ¡SERVIDOR LISTO! <------")
     yield
 
+
 app = FastAPI(
-    title="Movie Identity Service",
-    version="1.0.0",
-    lifespan=lifespan
+    title=settings.PROJECT_NAME,
+    version="2.0.0",
+    lifespan=lifespan,
+    # La documentación solo se publica en desarrollo
+    docs_url="/docs" if settings.docs_enabled else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if settings.docs_enabled else None,
 )
 
-# Conectar limitador de velocidad
+# Limitador de velocidad y formato de errores
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+register_error_handlers(app)
 
-
-
+# CORS restringido al origen del front (v2 lo llama el BFF desde el servidor)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Rutas
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    if request.url.path.startswith(settings.API_V2_STR):
+        # Respuestas con tokens o datos personales: nunca en caché
+        response.headers.setdefault("Cache-Control", "no-store")
+    return response
+
+
+# Rutas v1 (se retiran cuando el front termine de migrar a v2)
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(favorites.router, prefix="/api/v1/favorites", tags=["Favorites"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(reviews.router, prefix="/api/v1/reviews", tags=["Reviews"])
 
+# Rutas v2
+app.include_router(api_v2_router, prefix=settings.API_V2_STR)
+
+
 @app.get("/")
 def read_root():
-    return {"status": "online", "message": "API Funcionando 🚀"}
+    return {"status": "online"}

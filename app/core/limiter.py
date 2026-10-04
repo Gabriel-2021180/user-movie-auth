@@ -1,6 +1,8 @@
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 
-# Creamos el limitador.
-# get_remote_address usa la IP del usuario para identificarlo.
-limiter = Limiter(key_func=get_remote_address)
+from app.core.client_ip import get_client_ip
+
+# Identifica al cliente por su IP real (detrás del BFF usa X-Client-IP verificado).
+# Nota: el almacenamiento es en memoria por proceso; con varios workers o serverless
+# conviene apuntar storage_uri a Redis.
+limiter = Limiter(key_func=get_client_ip)

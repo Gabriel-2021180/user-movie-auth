@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
-from jose import jwt, JWTError
+import jwt
 
 from app.db.session import get_session
 from app.core.config import settings
@@ -23,7 +23,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
         user_id: str = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Token inválido")
-    except JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="No se pudo validar las credenciales")
     
     user = session.get(User, user_id)

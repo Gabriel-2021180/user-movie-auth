@@ -4,9 +4,8 @@ from sqlmodel import Session, select
 from app.db.session import get_session
 from app.models.user import User
 from app.schemas.user import UserUpdate, UserRead
-from app.api.v1.endpoints.auth import router as auth_router # Solo para referencia de imports
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt
+import jwt
 from app.core.config import settings
 
 router = APIRouter()

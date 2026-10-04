@@ -1,5 +1,5 @@
 # 1. Usamos una imagen base oficial de Python (ligera)
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 # 2. Establecemos el directorio de trabajo dentro del contenedor
 WORKDIR /app
@@ -16,6 +16,10 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # 6. Copiamos el resto del código de la aplicación
 COPY . .
+
+# 6b. Usuario sin privilegios (no correr la app como root)
+RUN useradd --create-home --uid 10001 appuser
+USER appuser
 
 # 7. Exponemos el puerto donde corre la API (Render usa la variable PORT, por defecto 8000 está bien internamente)
 EXPOSE 8000

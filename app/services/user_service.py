@@ -1,53 +1,71 @@
-from fastapi import HTTPException, status
-from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreate
-from app.models.user import User
-from app.core.security import get_password_hash
+import uuid
 
-class AuthService:
-    def __init__(self, user_repository: UserRepository):
-        self.user_repo = user_repository
+from sqlalchemy import RowMapping
 
-    def register_new_user(self, user_in: UserCreate) -> User:
-        """
-        Lógica completa de registro:
-        1. Valida duplicados.
-        2. Valida longitud de password.
-        3. Encripta password.
-        4. Crea usuario.
-        """
-        
-        # 1. Validaciones de Negocio
-        if len(user_in.password) > 72:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La contraseña es demasiado larga (máx 72 caracteres)."
-            )
+from app.core import security
+from app.core.config import settings
+from app.core.errors import APIError
+from app.repositories import user_repository
+from app.schemas.v2.user import LegalCurrent, UserMe, UserStats
 
-        if self.user_repo.get_by_email(user_in.email):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El email ya está registrado."
-            )
-        
-        if self.user_repo.get_by_username(user_in.username):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El nombre de usuario ya está en uso."
-            )
 
-        # 2. Preparación de Datos (Seguridad)
-        hashed_password = get_password_hash(user_in.password)
-        
-        # Creamos la instancia del Modelo (SQL) a partir del Esquema (Pydantic)
-        # Usamos model_dump() para convertir el esquema a diccionario y excluimos el password plano
-        user_data = user_in.model_dump(exclude={"password"})
-        
-        new_user = User(
-            **user_data,
-            hashed_password=hashed_password,
-            status=True
+def to_user_me(row: RowMapping) -> UserMe:
+    needs_consent = (
+        row["terms_version"] != settings.LEGAL_TERMS_VERSION
+        or row["privacy_version"] != settings.LEGAL_PRIVACY_VERSION
+    )
+    return UserMe(
+        id=row["id"],
+        email=row["email"],
+        username=row["username"],
+        first_name=row["first_name"],
+        last_name=row["last_name"],
+        avatar_url=None,  # avatares pospuestos
+        bio=row["bio"],
+        banner_color=row["banner_color"],
+        favorite_genres=list(row["favorite_genres"] or []),
+        onboarding_completed=row["onboarding_completed"],
+        needs_consent=needs_consent,
+        created_at=row["created_at"],
+        stats=UserStats(
+            favorites=row["favorites_count"],
+            reviews=row["reviews_count"],
+            watched=0,  # listas: siguiente etapa
+            watchlist=0,
+            avg_rating=float(row["avg_rating"]) if row["avg_rating"] is not None else None,
+        ),
+    )
+
+
+def get_me(user_id: uuid.UUID) -> UserMe:
+    row = user_repository.get_me(user_id)
+    if row is None:
+        raise APIError(404, "user_not_found", "Usuario no encontrado")
+    return to_user_me(row)
+
+
+def legal_current() -> LegalCurrent:
+    return LegalCurrent(
+        terms_version=settings.LEGAL_TERMS_VERSION,
+        privacy_version=settings.LEGAL_PRIVACY_VERSION,
+        terms_url=settings.LEGAL_TERMS_URL,
+        privacy_url=settings.LEGAL_PRIVACY_URL,
+    )
+
+
+def record_consent(user_id: uuid.UUID, terms_version: str, privacy_version: str, ip: str) -> None:
+    if terms_version != settings.LEGAL_TERMS_VERSION or privacy_version != settings.LEGAL_PRIVACY_VERSION:
+        raise APIError(
+            422, "legal_version_mismatch", "Debes aceptar la versión vigente de Términos y Privacidad.",
+            extra={"terms_version": settings.LEGAL_TERMS_VERSION, "privacy_version": settings.LEGAL_PRIVACY_VERSION},
         )
+    user_repository.record_consent(user_id, terms_version, privacy_version, ip)
 
-        # 3. Persistencia
-        return self.user_repo.create(new_user)
+
+def deactivate(user_id: uuid.UUID, password: str) -> None:
+    row = user_repository.get_auth_by_id(user_id)
+    if row is None or not security.verify_password(password, row["hashed_password"]):
+        if row is not None:
+            user_repository.register_login_failure(user_id)
+        raise APIError(401, "invalid_credentials", "Contraseña incorrecta")
+    user_repository.deactivate(user_id)

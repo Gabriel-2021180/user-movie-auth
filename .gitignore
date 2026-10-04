@@ -20,3 +20,26 @@ __pycache__/
 # --- Configuración de IDEs (Opcional pero recomendado) ---
 .vscode/
 .idea/
+# --- Secretos y credenciales (permitimos solo la plantilla) ---
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials*.json
+service-account*.json
+.vercel/
+
+# --- Exportaciones de usuarios / dumps de BD (datos personales) ---
+*.sql.gz
+*.dump
+dumps/
+exports/
+
+# --- Tests, cobertura y logs ---
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
