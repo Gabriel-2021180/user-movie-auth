@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Conexión con el rol de mínimos privilegios (solo EXECUTE sobre el esquema api): la usa v2
     DATABASE_URL_RUNTIME: Optional[str] = None
 
-    # Desarrollo contra el branch dev de Neon: DB_TARGET=dev usa las variables *_DEV
+    # prod | dev | test. dev usa las variables *_DEV (branch dev de Neon); test lo fija tests/conftest.py
     DB_TARGET: str = "prod"
     DATABASE_URL_DEV: Optional[str] = None
     DATABASE_URL_RUNTIME_DEV: Optional[str] = None
