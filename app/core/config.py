@@ -60,8 +60,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: Annotated[List[str], NoDecode] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # Legal
-    LEGAL_TERMS_VERSION: str = "2026-10-01"
-    LEGAL_PRIVACY_VERSION: str = "2026-10-01"
+    LEGAL_TERMS_VERSION: str = "2026-10-03"
+    LEGAL_PRIVACY_VERSION: str = "2026-10-03"
     LEGAL_TERMS_URL: str = "/legal/terminos"
     LEGAL_PRIVACY_URL: str = "/legal/privacidad"
 
