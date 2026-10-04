@@ -64,7 +64,11 @@ class Settings(BaseSettings):
     CRON_SECRET: Optional[str] = None
 
     # CORS: solo el origen del front (lista separada por comas)
-    CORS_ORIGINS: Annotated[List[str], NoDecode] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CORS_ORIGINS: Annotated[List[str], NoDecode] = [
+        "https://movie-explorer-rosy-iota.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
     # TMDB (recomendaciones). Se prefiere el token de lectura (va en un header, no en la URL)
     TMDB_API_KEY: Optional[str] = None
