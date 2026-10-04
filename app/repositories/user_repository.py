@@ -43,3 +43,25 @@ def record_consent(user_id: uuid.UUID, terms_version: str, privacy_version: str,
         p_privacy_version=privacy_version,
         p_ip=ip,
     )
+
+
+def get_public(username: str) -> Optional[RowMapping]:
+    return procedures.call_one("api.user_public", p_username=username)
+
+
+def update_profile(
+    user_id: uuid.UUID, username: Optional[str], first_name: Optional[str], last_name: Optional[str],
+    set_bio: bool, bio: Optional[str], banner_color: Optional[str], favorite_genres: Optional[list],
+) -> RowMapping:
+    return procedures.call_one(
+        "api.user_update_profile", p_user_id=user_id, p_username=username, p_first_name=first_name,
+        p_last_name=last_name, p_set_bio=set_bio, p_bio=bio, p_banner_color=banner_color,
+        p_favorite_genres=favorite_genres,
+    )
+
+
+def complete_onboarding(user_id: uuid.UUID, genres: list, seed_movies: list, seed_people: list) -> None:
+    procedures.call(
+        "api.onboarding_complete", p_user_id=user_id, p_genres=genres,
+        p_seed_movies=seed_movies, p_seed_people=seed_people,
+    )

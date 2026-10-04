@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 import jwt
-from fastapi import Depends, Request
+from fastapi import Depends, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import RowMapping
 
@@ -10,6 +10,7 @@ from app.core.client_ip import get_client_ip, is_trusted_bff
 from app.core.config import settings
 from app.core.errors import APIError
 from app.core.security import decode_access_token_v2
+from app.db.pagination import DEFAULT_LIMIT, MAX_LIMIT
 from app.repositories import user_repository
 
 _bearer = HTTPBearer(auto_error=False)
@@ -55,3 +56,20 @@ def get_current_user_row(
 
 def get_current_user_id(row: RowMapping = Depends(get_current_user_row)) -> uuid.UUID:
     return row["id"]
+
+
+class PageParams:
+    """?cursor=...&limit=... para los listados paginados."""
+
+    def __init__(
+        self,
+        cursor: Optional[str] = Query(default=None, max_length=200),
+        limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+    ):
+        self.cursor = cursor
+        self.limit = limit
+
+
+def created_or_ok(response: Response, created: bool) -> None:
+    """Altas idempotentes: 201 si se creó, 200 si ya existía."""
+    response.status_code = 201 if created else 200

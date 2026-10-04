@@ -14,7 +14,8 @@ _PARAM_RE = re.compile(r"^p_[a-z0-9_]+$")
 
 
 def _adapt(value: Any) -> Any:
-    if isinstance(value, dict):
+    # dict o lista de dicts -> jsonb; las listas de escalares van como arrays de Postgres
+    if isinstance(value, dict) or (isinstance(value, list) and value and isinstance(value[0], dict)):
         return Jsonb(value)
     return value
 
