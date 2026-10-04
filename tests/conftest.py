@@ -36,6 +36,8 @@ os.environ.update({
     "SMTP_PASSWORD": "unused",
     "BFF_SHARED_SECRET": "bff-test-secret",
     "CRON_SECRET": "cron-test-secret",
+    "TMDB_READ_TOKEN": "tmdb-test-token",
+    "TMDB_API_KEY": "",
     "REQUIRE_BFF_SECRET": "true",
 })
 

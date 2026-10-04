@@ -35,6 +35,24 @@ def decode_cursor(cursor: Optional[str]) -> Tuple[Optional[datetime], Optional[s
         raise APIError(422, "invalid_cursor", "Cursor de paginación inválido")
 
 
+def encode_offset_cursor(offset: int) -> str:
+    return base64.urlsafe_b64encode(json.dumps({"o": offset}).encode()).decode().rstrip("=")
+
+
+def decode_offset_cursor(cursor: Optional[str]) -> int:
+    """Cursor por posición, para listas calculadas al vuelo (recomendaciones)."""
+    if not cursor:
+        return 0
+    try:
+        padded = cursor + "=" * (-len(cursor) % 4)
+        offset = int(json.loads(base64.urlsafe_b64decode(padded))["o"])
+        if offset < 0 or offset > 10_000:
+            raise ValueError
+        return offset
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+        raise APIError(422, "invalid_cursor", "Cursor de paginación inválido")
+
+
 def fetch_page(
     fn: str, ts_field: str, id_field: str, cursor: Optional[str], limit: int, **params: Any
 ) -> Tuple[List[RowMapping], Optional[str]]:

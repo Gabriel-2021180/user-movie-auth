@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     # CORS: solo el origen del front (lista separada por comas)
     CORS_ORIGINS: Annotated[List[str], NoDecode] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
+    # TMDB (recomendaciones). Se prefiere el token de lectura (va en un header, no en la URL)
+    TMDB_API_KEY: Optional[str] = None
+    TMDB_READ_TOKEN: Optional[str] = None
+    TMDB_BASE_URL: str = "https://api.themoviedb.org/3"
+    TMDB_CACHE_TTL_SECONDS: int = 60 * 60 * 24
+    TMDB_GENRES_TTL_SECONDS: int = 60 * 60 * 24 * 7
+
     # Legal
     LEGAL_TERMS_VERSION: str = "2026-10-03"
     LEGAL_PRIVACY_VERSION: str = "2026-10-03"

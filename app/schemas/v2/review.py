@@ -56,4 +56,4 @@ class MovieState(BaseModel):
     watched_at: Optional[datetime] = None
     my_review: Optional[ReviewOut] = None
     in_lists: List[uuid.UUID]
-    dismissed: bool = False  # se conecta en la etapa de recomendaciones
+    dismissed: bool = False

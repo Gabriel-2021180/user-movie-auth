@@ -147,4 +147,5 @@ def movie_state(user_id: uuid.UUID, movie_id: str) -> MovieState:
         watched_at=row["watched_at"],
         my_review=ReviewOut(**review) if review else None,
         in_lists=list(row["in_lists"] or []),
+        dismissed=row["dismissed"],
     )
