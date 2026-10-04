@@ -24,6 +24,8 @@ def _runtime_url(owner_url: str) -> str:
 
 os.environ.update({
     "ENVIRONMENT": "test",
+    # Fuerza DATABASE_URL (BD de test) aunque el .env tenga DB_TARGET=dev
+    "DB_TARGET": "prod",
     "SECRET_KEY": "test-secret-key-" + "x" * 32,
     "JWT_SECRET": "test-jwt-secret-" + "y" * 32,
     "DATABASE_URL": TEST_DB or "postgresql://invalid:invalid@127.0.0.1:1/invalid",

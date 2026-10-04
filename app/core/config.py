@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # Conexión con el rol de mínimos privilegios (solo EXECUTE sobre el esquema api): la usa v2
     DATABASE_URL_RUNTIME: Optional[str] = None
 
+    # Desarrollo contra el branch dev de Neon: DB_TARGET=dev usa las variables *_DEV
+    DB_TARGET: str = "prod"
+    DATABASE_URL_DEV: Optional[str] = None
+    DATABASE_URL_RUNTIME_DEV: Optional[str] = None
+
     # Email
     SMTP_SERVER: str
     SMTP_PORT: int
@@ -71,6 +76,18 @@ class Settings(BaseSettings):
         if isinstance(v, str) and not v.strip().startswith("["):
             return [o.strip() for o in v.split(",") if o.strip()]
         return v
+
+    @property
+    def owner_database_url(self) -> str:
+        if self.DB_TARGET == "dev":
+            if not self.DATABASE_URL_DEV:
+                raise RuntimeError("DB_TARGET=dev pero DATABASE_URL_DEV no está configurada")
+            return self.DATABASE_URL_DEV
+        return self.DATABASE_URL
+
+    @property
+    def runtime_database_url(self) -> Optional[str]:
+        return self.DATABASE_URL_RUNTIME_DEV if self.DB_TARGET == "dev" else self.DATABASE_URL_RUNTIME
 
     @property
     def docs_enabled(self) -> bool:

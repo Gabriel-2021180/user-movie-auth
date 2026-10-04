@@ -9,7 +9,7 @@ from app.core.config import settings
 # pool_pre_ping=True: verifica que la conexión a Neon siga viva antes de usarla.
 # Se retira junto con v1.
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.owner_database_url,
     echo=False,
     pool_size=5,
     max_overflow=5,
@@ -41,10 +41,11 @@ _runtime_engine: Optional[Engine] = None
 def get_runtime_engine() -> Engine:
     global _runtime_engine
     if _runtime_engine is None:
-        if not settings.DATABASE_URL_RUNTIME:
-            raise RuntimeError("DATABASE_URL_RUNTIME no está configurada")
+        url = settings.runtime_database_url
+        if not url:
+            raise RuntimeError("La URL del rol runtime no está configurada (DATABASE_URL_RUNTIME[_DEV])")
         _runtime_engine = create_engine(
-            _psycopg3_url(settings.DATABASE_URL_RUNTIME),
+            _psycopg3_url(url),
             echo=False,
             pool_size=5,
             max_overflow=5,

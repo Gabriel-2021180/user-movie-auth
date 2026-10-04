@@ -2,7 +2,8 @@
 DATABASE_URL_RUNTIME en .env. No imprime contraseñas.
 
 Uso:  python -m scripts.create_runtime_role
-Requiere en .env: DATABASE_URL (dueño). Si no existe DB_RUNTIME_PASSWORD, la genera.
+Con DB_TARGET=dev en .env usa DATABASE_URL_DEV y escribe DATABASE_URL_RUNTIME_DEV.
+Si no existe la contraseña del rol (DB_RUNTIME_PASSWORD[_DEV]), la genera.
 """
 import secrets
 from pathlib import Path
@@ -18,8 +19,9 @@ ROLE = "movie_api_runtime"
 
 def main() -> None:
     env = dotenv_values(ENV_PATH)
-    owner_url = env["DATABASE_URL"].replace("postgresql+psycopg2://", "postgresql://")
-    password = env.get("DB_RUNTIME_PASSWORD") or secrets.token_urlsafe(32)
+    suffix = "_DEV" if env.get("DB_TARGET") == "dev" else ""
+    owner_url = env["DATABASE_URL" + suffix].replace("postgresql+psycopg2://", "postgresql://")
+    password = env.get("DB_RUNTIME_PASSWORD" + suffix) or secrets.token_urlsafe(32)
 
     with psycopg.connect(owner_url, prepare_threshold=None) as conn:
         conn.execute(
@@ -32,9 +34,9 @@ def main() -> None:
     host = parts.netloc.split("@", 1)[1]
     runtime_url = urlunsplit(parts._replace(netloc=f"{ROLE}:{quote(password, safe='')}@{host}"))
 
-    set_key(str(ENV_PATH), "DB_RUNTIME_PASSWORD", password, quote_mode="never")
-    set_key(str(ENV_PATH), "DATABASE_URL_RUNTIME", runtime_url, quote_mode="never")
-    print(f"Rol {ROLE} activado. DATABASE_URL_RUNTIME escrita en .env (host {parts.hostname}).")
+    set_key(str(ENV_PATH), "DB_RUNTIME_PASSWORD" + suffix, password, quote_mode="never")
+    set_key(str(ENV_PATH), "DATABASE_URL_RUNTIME" + suffix, runtime_url, quote_mode="never")
+    print(f"Rol {ROLE} activado. DATABASE_URL_RUNTIME{suffix} escrita en .env (host {parts.hostname}).")
 
 
 if __name__ == "__main__":
