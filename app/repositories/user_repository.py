@@ -19,10 +19,6 @@ def get_auth_by_id(user_id: uuid.UUID) -> Optional[RowMapping]:
     return procedures.call_one("api.user_auth_by_id", p_user_id=user_id)
 
 
-def register_login_failure(user_id: uuid.UUID) -> Optional[RowMapping]:
-    return procedures.call_one("api.login_register_failure", p_user_id=user_id)
-
-
 def register_login_success(user_id: uuid.UUID, new_hash: Optional[str]) -> None:
     procedures.call("api.login_register_success", p_user_id=user_id, p_new_hash=new_hash)
 

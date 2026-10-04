@@ -8,6 +8,7 @@ from app.core.errors import APIError
 from app.repositories import user_repository
 from app.schemas.v2.library import OnboardingIn
 from app.schemas.v2.user import LegalCurrent, ProfilePatch, PublicProfile, UserMe, UserStats
+from app.services import login_guard
 
 
 def to_user_me(row: RowMapping) -> UserMe:
@@ -63,12 +64,13 @@ def record_consent(user_id: uuid.UUID, terms_version: str, privacy_version: str,
     user_repository.record_consent(user_id, terms_version, privacy_version, ip)
 
 
-def deactivate(user_id: uuid.UUID, password: str) -> None:
+def deactivate(user_id: uuid.UUID, email: str, password: str) -> None:
+    # Comparte el bloqueo del login: no sirve para adivinar la contraseña por otra vía
+    login_guard.ensure_not_locked(email)
     row = user_repository.get_auth_by_id(user_id)
     if row is None or not security.verify_password(password, row["hashed_password"]):
-        if row is not None:
-            user_repository.register_login_failure(user_id)
-        raise APIError(401, "invalid_credentials", "Contraseña incorrecta")
+        raise login_guard.register_failure(email)
+    login_guard.clear(email)
     user_repository.deactivate(user_id)
 
 

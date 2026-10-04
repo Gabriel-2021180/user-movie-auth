@@ -74,6 +74,17 @@ def hash_code(purpose: str, email: str, code: str) -> bytes:
     return hmac.new(_derive_key("email-code-v1"), msg, hashlib.sha256).digest()
 
 
+# --- LÍMITES Y BLOQUEOS (en BD solo se guarda el HMAC, nunca la IP ni el email) ---
+
+def login_throttle_key(email: str) -> bytes:
+    return hmac.new(_derive_key("login-throttle-v1"), email.lower().encode("utf-8"), hashlib.sha256).digest()
+
+
+def rate_limit_key(scope: str, kind: str, value: str) -> bytes:
+    msg = f"{scope}:{kind}:{value.lower()}".encode("utf-8")
+    return hmac.new(_derive_key("rate-limit-v1"), msg, hashlib.sha256).digest()
+
+
 # --- REFRESH TOKENS (opacos; en BD solo se guarda su hash) ---
 
 def generate_refresh_token() -> str:

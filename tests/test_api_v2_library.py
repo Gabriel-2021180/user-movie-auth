@@ -5,7 +5,7 @@ import psycopg
 import pytest
 
 from tests.conftest import BFF_HEADERS
-from tests.test_api_v2_integration import _auth, _register
+from tests.test_api_v2_integration import PASSWORD, _auth, _register
 
 pytestmark = pytest.mark.usefixtures("db_ready")
 
@@ -53,7 +53,7 @@ def test_public_profile_hides_deactivated(client, user):
     r = client.get(f"/api/v2/users/{username.upper()}", headers=BFF_HEADERS)
     assert r.status_code == 200
     assert set(r.json()) == {"username", "avatar_url", "bio", "banner_color", "created_at", "stats"}
-    client.request("DELETE", "/api/v2/users/me", headers=user["h"], json={"password": "Secreta123"})
+    client.request("DELETE", "/api/v2/users/me", headers=user["h"], json={"password": PASSWORD})
     assert client.get(f"/api/v2/users/{username}", headers=BFF_HEADERS).status_code == 404
 
 
@@ -172,7 +172,7 @@ def test_reviews(client, user, outbox):
     assert len(client.get("/api/v2/reviews/me", headers=h).json()["items"]) == 1
 
     # Las reseñas de cuentas dadas de baja no se muestran
-    client.request("DELETE", "/api/v2/users/me", headers=h, json={"password": "Secreta123"})
+    client.request("DELETE", "/api/v2/users/me", headers=h, json={"password": PASSWORD})
     page = client.get("/api/v2/reviews/movie/27205", headers=BFF_HEADERS).json()
     assert page["items"] == [] and page["summary"]["count"] == 0
 

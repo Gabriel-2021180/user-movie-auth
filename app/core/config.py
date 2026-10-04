@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # Retención de sesiones (IP / navegador) tras vencer o cerrarse
     SESSION_RETENTION_DAYS: int = 90
 
+    # Límite de solicitudes de auth en la BD y verificación de contraseñas filtradas (HIBP)
+    RATE_LIMIT_ENABLED: bool = True
+    HIBP_ENABLED: bool = True
+
     # BFF (Next.js): secreto compartido que habilita X-Client-IP
     BFF_SHARED_SECRET: Optional[str] = None
     REQUIRE_BFF_SECRET: bool = True

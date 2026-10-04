@@ -6,6 +6,10 @@ from app.schemas.v2.user import UserMe
 
 _USERNAME_RE = re.compile(r"^[A-Za-z0-9_.]{3,30}$")
 
+# Contraseñas nuevas (registro y reset). Además se rechazan las que aparecen en filtraciones (HIBP).
+PASSWORD_MIN_LENGTH = 12
+PASSWORD_MAX_LENGTH = 128
+
 
 def _check_password_policy(v: str) -> str:
     if not re.search(r"[A-Za-z]", v) or not re.search(r"\d", v):
@@ -22,7 +26,7 @@ class SignupIn(_In):
     username: str
     first_name: str = Field(min_length=1, max_length=50)
     last_name: str = Field(min_length=1, max_length=50)
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
     accepted_terms_version: str = Field(min_length=1, max_length=32)
     accepted_privacy_version: str = Field(min_length=1, max_length=32)
 
@@ -58,7 +62,7 @@ class ForgotPasswordIn(_In):
 class ResetPasswordIn(_In):
     email: EmailStr
     code: str = Field(pattern=r"^\d{6}$")
-    new_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
 
     _password = field_validator("new_password")(_check_password_policy)
 

@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import RowMapping
 
 from app.api.v2.deps import client_ip, get_current_user_id, get_current_user_row
+from app.core import rate_limit
 from app.core.limiter import limiter
 from app.schemas.v2.user import ConsentIn, DeleteMeIn, ProfilePatch, PublicProfile, UserMe
 from app.repositories import maintenance_repository
@@ -28,9 +29,9 @@ def update_me(request: Request, data: ProfilePatch, user_id: uuid.UUID = Depends
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
-@limiter.limit("5/hour")
-def deactivate_me(request: Request, data: DeleteMeIn, user_id: uuid.UUID = Depends(get_current_user_id)):
-    user_service.deactivate(user_id, data.password)
+def deactivate_me(data: DeleteMeIn, row: RowMapping = Depends(get_current_user_row)):
+    rate_limit.enforce("delete_me", user=str(row["id"]))
+    user_service.deactivate(row["id"], row["email"], data.password)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -43,9 +44,9 @@ def accept_consents(
 
 
 @router.get("/me/export")
-@limiter.limit("3/day")
-def export_me(request: Request, user_id: uuid.UUID = Depends(get_current_user_id)):
+def export_me(user_id: uuid.UUID = Depends(get_current_user_id)):
     """Todos mis datos en JSON (derecho de acceso y portabilidad)."""
+    rate_limit.enforce("export", user=str(user_id))
     data = maintenance_repository.export_user(user_id) or {}
     data["exported_at"] = datetime.now(timezone.utc).isoformat()
     filename = f"filmstack-mis-datos-{datetime.now(timezone.utc):%Y%m%d}.json"

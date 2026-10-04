@@ -12,28 +12,17 @@ from app.repositories import auth_repository, user_repository
 from app.schemas.v2.auth import (
     AuthOut, ForgotPasswordIn, LoginIn, ReactivateIn, ResetPasswordIn, SignupIn, Tokens, VerifyIn,
 )
-from app.services import user_service
+from app.integrations import hibp
+from app.services import login_guard, user_service
 from app.services.email_service import EmailService
 
 SIGNUP_MESSAGE = "Te enviamos un código de verificación. Revisa tu correo."
 FORGOT_MESSAGE = "Si el correo está registrado, recibirás un código."
 
 
-def _invalid_credentials() -> APIError:
-    return APIError(401, "invalid_credentials", "Email o contraseña incorrectos")
-
-
-def _locked(until: datetime) -> APIError:
-    seconds = max(1, int((until - datetime.utcnow()).total_seconds()))
-    return APIError(
-        423, "account_locked", "Cuenta bloqueada temporalmente por intentos fallidos.",
-        extra={"retry_after_seconds": seconds}, headers={"Retry-After": str(seconds)},
-    )
-
-
-def _is_locked(row: RowMapping) -> bool:
-    # locked_until es timestamp sin zona en UTC (heredado de v1)
-    return bool(row["locked_until"] and row["locked_until"] > datetime.utcnow())
+def _breached(field: str) -> APIError:
+    message = "Esta contraseña apareció en filtraciones de datos públicas. Elige otra."
+    return APIError(422, "password_breached", message, fields={field: message})
 
 
 def _reactivate_until(row: RowMapping) -> Optional[datetime]:
@@ -60,19 +49,19 @@ def _auth_out(user_id: uuid.UUID, user_agent: Optional[str], ip: str) -> AuthOut
     return AuthOut(user=user_service.get_me(user_id), tokens=tokens)
 
 
-def _check_password_or_fail(row: Optional[RowMapping], password: str) -> RowMapping:
-    """Verificación común de login/reactivación: tiempo constante, bloqueo progresivo."""
+def _check_password_or_fail(email: str, password: str) -> RowMapping:
+    """Verificación común de login/reactivación: tiempo constante y bloqueo creciente por email.
+
+    Un email inexistente recibe exactamente las mismas respuestas (401 y luego 423).
+    """
+    login_guard.ensure_not_locked(email)
+    row = user_repository.get_auth_by_email(email)
     if row is None:
         security.burn_password_check()
-        raise _invalid_credentials()
-    if _is_locked(row):
-        security.burn_password_check()
-        raise _locked(row["locked_until"])
+        raise login_guard.register_failure(email)
     if not security.verify_password(password, row["hashed_password"]):
-        failure = user_repository.register_login_failure(row["id"])
-        if failure and failure["locked_until"]:
-            raise _locked(failure["locked_until"])
-        raise _invalid_credentials()
+        raise login_guard.register_failure(email)
+    login_guard.clear(email)
     if not row["is_enabled"]:
         raise APIError(403, "account_disabled", "Esta cuenta está deshabilitada.")
     return row
@@ -98,6 +87,8 @@ def _check_legal_versions(terms: str, privacy: str) -> None:
 
 async def signup(data: SignupIn) -> str:
     _check_legal_versions(data.accepted_terms_version, data.accepted_privacy_version)
+    if await hibp.is_breached(data.password):
+        raise _breached("password")
     email = data.email.lower()
     code = security.generate_numeric_code()
     payload = {
@@ -142,14 +133,14 @@ def verify(data: VerifyIn, user_agent: Optional[str], ip: str) -> AuthOut:
 # --- SESIÓN ---
 
 def login(data: LoginIn, user_agent: Optional[str], ip: str) -> AuthOut:
-    row = _check_password_or_fail(user_repository.get_auth_by_email(data.email), data.password)
+    row = _check_password_or_fail(data.email, data.password)
     new_hash = security.get_password_hash(data.password) if security.password_needs_rehash(row["hashed_password"]) else None
     user_repository.register_login_success(row["id"], new_hash)
 
     if row["account_status"] == "deactivated":
         until = _reactivate_until(row)
         if until is None or until < datetime.now(timezone.utc):
-            raise _invalid_credentials()
+            raise login_guard.invalid_credentials()
         raise APIError(
             409, "account_deactivated", "Tu cuenta está dada de baja. Puedes reactivarla.",
             extra={"reactivate_until": until.isoformat()},
@@ -184,10 +175,10 @@ def logout_all(user_id: uuid.UUID) -> None:
 
 
 def reactivate(data: ReactivateIn, user_agent: Optional[str], ip: str) -> AuthOut:
-    row = _check_password_or_fail(user_repository.get_auth_by_email(data.email), data.password)
+    row = _check_password_or_fail(data.email, data.password)
     status = user_repository.reactivate(row["id"], settings.ACCOUNT_GRACE_DAYS)
     if status == "expired":
-        raise _invalid_credentials()
+        raise login_guard.invalid_credentials()
     if status == "not_deactivated":
         raise APIError(409, "not_deactivated", "La cuenta ya está activa. Inicia sesión normalmente.")
     user_repository.register_login_success(row["id"], None)
@@ -209,12 +200,18 @@ async def forgot_password(data: ForgotPasswordIn) -> str:
     return FORGOT_MESSAGE
 
 
-def reset_password(data: ResetPasswordIn) -> str:
+async def reset_password(data: ResetPasswordIn) -> str:
+    # Antes de gastar un intento del código: si la contraseña está filtrada, puede reintentar
+    if await hibp.is_breached(data.new_password):
+        raise _breached("new_password")
     email = data.email.lower()
-    status = auth_repository.password_reset_complete(
-        email, security.hash_code("password_reset", email, data.code), settings.CODE_MAX_ATTEMPTS,
-        security.get_password_hash(data.new_password),
+    new_hash = await asyncio.to_thread(security.get_password_hash, data.new_password)
+    status = await asyncio.to_thread(
+        auth_repository.password_reset_complete,
+        email, security.hash_code("password_reset", email, data.code), settings.CODE_MAX_ATTEMPTS, new_hash,
     )
     if status != "ok":
         raise _code_error(status)
+    # Demostró ser dueño del email: se levanta el bloqueo de login
+    await asyncio.to_thread(login_guard.clear, email)
     return "Contraseña actualizada. Ya puedes iniciar sesión."

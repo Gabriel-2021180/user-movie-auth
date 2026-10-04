@@ -39,6 +39,9 @@ os.environ.update({
     "TMDB_READ_TOKEN": "tmdb-test-token",
     "TMDB_API_KEY": "",
     "REQUIRE_BFF_SECRET": "true",
+    # Se activan solo en los tests que los prueban (la BD de test se comparte entre tests)
+    "RATE_LIMIT_ENABLED": "false",
+    "HIBP_ENABLED": "false",
 })
 
 from fastapi.testclient import TestClient  # noqa: E402
